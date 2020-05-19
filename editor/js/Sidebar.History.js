@@ -3,7 +3,12 @@
  * Developed as part of a project at University of Applied Sciences and Arts Northwestern Switzerland (www.fhnw.ch)
  */
 
-Sidebar.History = function ( editor ) {
+import { UIPanel, UIBreak, UIText } from './libs/ui.js';
+import { UIBoolean, UIOutliner } from './libs/ui.three.js';
+
+var SidebarHistory = function ( editor ) {
+
+	var strings = editor.strings;
 
 	var signals = editor.signals;
 
@@ -11,13 +16,13 @@ Sidebar.History = function ( editor ) {
 
 	var history = editor.history;
 
-	var container = new UI.Panel();
+	var container = new UIPanel();
 
-	container.add( new UI.Text( 'HISTORY' ) );
+	container.add( new UIText( strings.getKey( 'sidebar/history' ).toUpperCase() ) );
 
 	//
 
-	var persistent = new UI.THREE.Boolean( config.getKey( 'settings/history' ), 'persistent' );
+	var persistent = new UIBoolean( config.getKey( 'settings/history' ), strings.getKey( 'sidebar/history/persistent' ) );
 	persistent.setPosition( 'absolute' ).setRight( '8px' );
 	persistent.onChange( function () {
 
@@ -42,11 +47,11 @@ Sidebar.History = function ( editor ) {
 	} );
 	container.add( persistent );
 
-	container.add( new UI.Break(), new UI.Break() );
+	container.add( new UIBreak(), new UIBreak() );
 
 	var ignoreObjectSelectedSignal = false;
 
-	var outliner = new UI.Outliner( editor );
+	var outliner = new UIOutliner( editor );
 	outliner.onChange( function () {
 
 		ignoreObjectSelectedSignal = true;
@@ -63,36 +68,47 @@ Sidebar.History = function ( editor ) {
 	var refreshUI = function () {
 
 		var options = [];
-		var enumerator = 1;
 
-		( function addObjects( objects, pad ) {
+		function buildOption( object ) {
+
+			var option = document.createElement( 'div' );
+			option.value = object.id;
+
+			return option;
+
+		}
+
+		( function addObjects( objects ) {
 
 			for ( var i = 0, l = objects.length; i < l; i ++ ) {
 
 				var object = objects[ i ];
 
-				var html = pad + "<span style='color: #0000cc '>" + enumerator ++ + ". Undo: " + object.name + "</span>";
+				var option = buildOption( object );
+				option.innerHTML = '&nbsp;' + object.name;
 
-				options.push( { value: object.id, html: html } );
+				options.push( option );
 
 			}
 
-		} )( history.undos, '&nbsp;' );
+		} )( history.undos );
 
 
-		( function addObjects( objects, pad ) {
+		( function addObjects( objects ) {
 
 			for ( var i = objects.length - 1; i >= 0; i -- ) {
 
 				var object = objects[ i ];
 
-				var html = pad + "<span style='color: #71544e'>" + enumerator ++ + ". Redo: " +  object.name + "</span>";
+				var option = buildOption( object );
+				option.innerHTML = '&nbsp;' + object.name;
+				option.style.opacity = 0.3;
 
-				options.push( { value: object.id, html: html } );
+				options.push( option );
 
 			}
 
-		} )( history.redos, '&nbsp;' );
+		} )( history.redos );
 
 		outliner.setOptions( options );
 
@@ -107,6 +123,8 @@ Sidebar.History = function ( editor ) {
 	signals.historyChanged.add( refreshUI );
 	signals.historyChanged.add( function ( cmd ) {
 
+		if ( ignoreObjectSelectedSignal === true ) return;
+
 		outliner.setValue( cmd !== undefined ? cmd.id : null );
 
 	} );
@@ -115,3 +133,5 @@ Sidebar.History = function ( editor ) {
 	return container;
 
 };
+
+export { SidebarHistory };
