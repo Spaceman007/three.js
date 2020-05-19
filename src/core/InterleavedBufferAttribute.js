@@ -1,32 +1,64 @@
+import { Vector3 } from '../math/Vector3.js';
+
 /**
  * @author benaadams / https://twitter.com/ben_a_adams
  */
 
-THREE.InterleavedBufferAttribute = function ( interleavedBuffer, itemSize, offset ) {
+var _vector = new Vector3();
 
-	this.uuid = THREE.Math.generateUUID();
+function InterleavedBufferAttribute( interleavedBuffer, itemSize, offset, normalized ) {
 
 	this.data = interleavedBuffer;
 	this.itemSize = itemSize;
 	this.offset = offset;
 
-};
+	this.normalized = normalized === true;
 
+}
 
-THREE.InterleavedBufferAttribute.prototype = {
+Object.defineProperties( InterleavedBufferAttribute.prototype, {
 
-	constructor: THREE.InterleavedBufferAttribute,
+	count: {
 
-	get length() {
+		get: function () {
 
-		console.warn( 'THREE.BufferAttribute: .length has been deprecated. Please use .count.' );
-		return this.array.length;
+			return this.data.count;
+
+		}
 
 	},
 
-	get count() {
+	array: {
 
-		return this.data.count;
+		get: function () {
+
+			return this.data.array;
+
+		}
+
+	}
+
+} );
+
+Object.assign( InterleavedBufferAttribute.prototype, {
+
+	isInterleavedBufferAttribute: true,
+
+	applyMatrix4: function ( m ) {
+
+		for ( var i = 0, l = this.data.count; i < l; i ++ ) {
+
+			_vector.x = this.getX( i );
+			_vector.y = this.getY( i );
+			_vector.z = this.getZ( i );
+
+			_vector.applyMatrix4( m );
+
+			this.setXYZ( i, _vector.x, _vector.y, _vector.z );
+
+		}
+
+		return this;
 
 	},
 
@@ -122,4 +154,7 @@ THREE.InterleavedBufferAttribute.prototype = {
 
 	}
 
-};
+} );
+
+
+export { InterleavedBufferAttribute };

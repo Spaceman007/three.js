@@ -2,103 +2,142 @@
  * @author mrdoob / http://mrdoob.com/
  */
 
-THREE.AudioListener = function () {
+import { Vector3 } from '../math/Vector3.js';
+import { Quaternion } from '../math/Quaternion.js';
+import { Clock } from '../core/Clock.js';
+import { Object3D } from '../core/Object3D.js';
+import { AudioContext } from './AudioContext.js';
 
-	THREE.Object3D.call( this );
+var _position = new Vector3();
+var _quaternion = new Quaternion();
+var _scale = new Vector3();
+var _orientation = new Vector3();
+
+function AudioListener() {
+
+	Object3D.call( this );
 
 	this.type = 'AudioListener';
 
-	this.context = THREE.AudioContext;
+	this.context = AudioContext.getContext();
 
 	this.gain = this.context.createGain();
 	this.gain.connect( this.context.destination );
 
 	this.filter = null;
 
-};
+	this.timeDelta = 0;
 
-THREE.AudioListener.prototype = Object.create( THREE.Object3D.prototype );
-THREE.AudioListener.prototype.constructor = THREE.AudioListener;
+	// private
 
-THREE.AudioListener.prototype.getInput = function () {
+	this._clock = new Clock();
 
-	return this.gain;
+}
 
-};
+AudioListener.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
-THREE.AudioListener.prototype.removeFilter = function ( ) {
+	constructor: AudioListener,
 
-	if ( this.filter !== null ) {
+	getInput: function () {
 
-		this.gain.disconnect( this.filter );
-		this.filter.disconnect( this.context.destination );
-		this.gain.connect( this.context.destination );
-		this.filter = null;
+		return this.gain;
 
-	}
+	},
 
-};
+	removeFilter: function ( ) {
 
-THREE.AudioListener.prototype.setFilter = function ( value ) {
+		if ( this.filter !== null ) {
 
-	if ( this.filter !== null ) {
+			this.gain.disconnect( this.filter );
+			this.filter.disconnect( this.context.destination );
+			this.gain.connect( this.context.destination );
+			this.filter = null;
 
-		this.gain.disconnect( this.filter );
-		this.filter.disconnect( this.context.destination );
+		}
 
-	} else {
+		return this;
 
-		this.gain.disconnect( this.context.destination );
+	},
 
-	}
+	getFilter: function () {
 
-	this.filter = value;
-	this.gain.connect( this.filter );
-	this.filter.connect( this.context.destination );
+		return this.filter;
 
-};
+	},
 
-THREE.AudioListener.prototype.getFilter = function () {
+	setFilter: function ( value ) {
 
-	return this.filter;
+		if ( this.filter !== null ) {
 
-};
+			this.gain.disconnect( this.filter );
+			this.filter.disconnect( this.context.destination );
 
-THREE.AudioListener.prototype.setMasterVolume = function ( value ) {
+		} else {
 
-	this.gain.gain.value = value;
+			this.gain.disconnect( this.context.destination );
 
-};
+		}
 
-THREE.AudioListener.prototype.getMasterVolume = function () {
+		this.filter = value;
+		this.gain.connect( this.filter );
+		this.filter.connect( this.context.destination );
 
-	return this.gain.gain.value;
+		return this;
 
-};
+	},
 
+	getMasterVolume: function () {
 
-THREE.AudioListener.prototype.updateMatrixWorld = ( function () {
+		return this.gain.gain.value;
 
-	var position = new THREE.Vector3();
-	var quaternion = new THREE.Quaternion();
-	var scale = new THREE.Vector3();
+	},
 
-	var orientation = new THREE.Vector3();
+	setMasterVolume: function ( value ) {
 
-	return function updateMatrixWorld( force ) {
+		this.gain.gain.setTargetAtTime( value, this.context.currentTime, 0.01 );
 
-		THREE.Object3D.prototype.updateMatrixWorld.call( this, force );
+		return this;
+
+	},
+
+	updateMatrixWorld: function ( force ) {
+
+		Object3D.prototype.updateMatrixWorld.call( this, force );
 
 		var listener = this.context.listener;
 		var up = this.up;
 
-		this.matrixWorld.decompose( position, quaternion, scale );
+		this.timeDelta = this._clock.getDelta();
 
-		orientation.set( 0, 0, - 1 ).applyQuaternion( quaternion );
+		this.matrixWorld.decompose( _position, _quaternion, _scale );
 
-		listener.setPosition( position.x, position.y, position.z );
-		listener.setOrientation( orientation.x, orientation.y, orientation.z, up.x, up.y, up.z );
+		_orientation.set( 0, 0, - 1 ).applyQuaternion( _quaternion );
 
-	};
+		if ( listener.positionX ) {
 
-} )();
+			// code path for Chrome (see #14393)
+
+			var endTime = this.context.currentTime + this.timeDelta;
+
+			listener.positionX.linearRampToValueAtTime( _position.x, endTime );
+			listener.positionY.linearRampToValueAtTime( _position.y, endTime );
+			listener.positionZ.linearRampToValueAtTime( _position.z, endTime );
+			listener.forwardX.linearRampToValueAtTime( _orientation.x, endTime );
+			listener.forwardY.linearRampToValueAtTime( _orientation.y, endTime );
+			listener.forwardZ.linearRampToValueAtTime( _orientation.z, endTime );
+			listener.upX.linearRampToValueAtTime( up.x, endTime );
+			listener.upY.linearRampToValueAtTime( up.y, endTime );
+			listener.upZ.linearRampToValueAtTime( up.z, endTime );
+
+		} else {
+
+			listener.setPosition( _position.x, _position.y, _position.z );
+			listener.setOrientation( _orientation.x, _orientation.y, _orientation.z, up.x, up.y, up.z );
+
+		}
+
+	}
+
+} );
+
+export { AudioListener };
